@@ -1,5 +1,5 @@
 {
-  "name": "@oceanprotocol/react",
+  "name": "@neurondao/ocean-react",
   "version": "0.0.45",
   "description": "React hooks & components on top of @oceanprotocol/lib",
   "main": "dist/index.js",
