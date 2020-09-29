@@ -8,6 +8,7 @@ import React, {
   ReactNode
 } from 'react'
 import Web3 from 'web3'
+import { provider } from 'web3-core'
 import ProviderStatus from './ProviderStatus'
 import { Ocean, Logger, Account, Config } from '@oceanprotocol/lib'
 import Web3Modal, { ICoreOptions } from 'web3modal'
@@ -19,23 +20,29 @@ interface Balance {
   ocean: string | undefined
 }
 
-interface OceanProviderValue {
-  web3: Web3 | undefined
-  web3Provider: any
-  web3Modal: Web3Modal
-  ocean: Ocean
-  config: Config
-  account: Account
+export type OceanContextType = {
+  web3?: Web3
+  web3Provider?: provider
+  web3Modal?: Web3Modal
+  ocean?: Ocean
+  config?: Config
+  account?: Account
   accountId: string
-  balance: Balance
-  chainId: number | undefined
-  status: ProviderStatus
-  connect: (config?: Config) => Promise<void>
-  logout: () => Promise<void>
-  refreshBalance: () => Promise<void>
+  balance?: Balance
+  chainId?: number
+  status?: ProviderStatus
+  connect?: (config?: Config) => Promise<void>
+  logout?: () => Promise<void>
+  refreshBalance?: () => Promise<void>
 }
 
-const OceanContext = createContext({} as OceanProviderValue)
+const DefaultOceanContextValues = {
+  accountId: ''
+}
+
+export const OceanContext = createContext<OceanContextType>(
+  DefaultOceanContextValues
+)
 
 function OceanProvider({
   initialConfig,
@@ -46,18 +53,15 @@ function OceanProvider({
   web3ModalOpts?: Partial<ICoreOptions>
   children: ReactNode
 }): ReactElement {
-  const [web3, setWeb3] = useState<Web3 | undefined>()
-  const [web3Provider, setWeb3Provider] = useState<any | undefined>()
-  const [ocean, setOcean] = useState<Ocean | undefined>()
+  const [web3, setWeb3] = useState<Web3>()
+  const [web3Provider, setWeb3Provider] = useState<provider>()
+  const [ocean, setOcean] = useState<Ocean>()
   const [web3Modal, setWeb3Modal] = useState<Web3Modal>()
-  const [chainId, setChainId] = useState<number | undefined>()
-  const [account, setAccount] = useState<Account | undefined>()
-  const [accountId, setAccountId] = useState<string | undefined>()
+  const [chainId, setChainId] = useState<number>()
+  const [account, setAccount] = useState<Account>()
+  const [accountId, setAccountId] = useState<string>()
   const [config, setConfig] = useState<Config>(initialConfig)
-  const [balance, setBalance] = useState<Balance | undefined>({
-    eth: undefined,
-    ocean: undefined
-  })
+  const [balance, setBalance] = useState<Balance>()
   const [status, setStatus] = useState<ProviderStatus>(
     ProviderStatus.NOT_AVAILABLE
   )
@@ -84,7 +88,8 @@ function OceanProvider({
 
         newConfig && setConfig(newConfig)
 
-        const provider = await web3Modal?.connect()
+        // Naz: not entirely sure that const provider is of type web3-core provider. Please, double-check
+        const provider: provider = await web3Modal?.connect()
         setWeb3Provider(provider)
 
         const web3 = new Web3(provider)
@@ -136,11 +141,12 @@ function OceanProvider({
     setBalance(balance)
   }
   async function logout() {
-    // TODO: #67 check how is the proper way to logout
+    // TODO: #67 check what is the proper way to logout
     web3Modal?.clearCachedProvider()
   }
 
   // TODO: #68 Refetch balance periodically, or figure out some event to subscribe to
+  // Naz: just set timer?
 
   useEffect(() => {
     const handleAccountsChanged = async (accounts: string[]) => {
@@ -149,44 +155,48 @@ function OceanProvider({
     }
     // web3Modal && web3Modal.on('connect', handleConnect)
 
-    if (web3Provider !== undefined && web3Provider !== null) {
-      web3Provider.on('accountsChanged', handleAccountsChanged)
-      // web3Provider.on('chainChanged', handleNetworkChanged)
-
+    if (web3Modal) {
+      web3Modal.on('accountsChanged', handleAccountsChanged)
       return () => {
-        web3Provider.removeListener('accountsChanged', handleAccountsChanged)
-        //  web3Provider.removeListener('chainChanged', handleNetworkChanged)
+        // Naz: I think off is what you need here?
+        web3Modal.off('accountsChanged', handleAccountsChanged)
       }
     }
+
+    // ! Naz: web3-core provider does not have on and removeListener
+    // if (web3Provider && typeof web3Provider !== 'string') {
+    //   web3Provider.on('accountsChanged', handleAccountsChanged)
+    //   // web3Provider.on('chainChanged', handleNetworkChanged)
+
+    //   return () => {
+    //     web3Provider.removeListener('accountsChanged', handleAccountsChanged)
+    //     //  web3Provider.removeListener('chainChanged', handleNetworkChanged)
+    //   }
+    // }
   }, [web3Modal, web3Provider, connect])
 
   return (
     <OceanContext.Provider
-      value={
-        {
-          web3,
-          web3Provider,
-          web3Modal,
-          ocean,
-          account,
-          accountId,
-          balance,
-          chainId,
-          status,
-          config,
-          connect,
-          logout,
-          refreshBalance
-        } as OceanProviderValue
-      }
+      value={{
+        web3,
+        web3Provider,
+        web3Modal,
+        ocean,
+        account,
+        accountId: accountId || '',
+        balance,
+        chainId,
+        status,
+        config,
+        connect,
+        logout,
+        refreshBalance
+      }}
     >
       {children}
     </OceanContext.Provider>
   )
 }
 
-// Helper hook to access the provider values
-const useOcean = (): OceanProviderValue => useContext(OceanContext)
-
-export { OceanProvider, useOcean, OceanProviderValue, Balance }
+export { OceanProvider, Balance }
 export default OceanProvider

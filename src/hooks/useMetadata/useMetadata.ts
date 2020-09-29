@@ -1,23 +1,25 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useContext } from 'react'
 import { DID, DDO, Metadata, Logger } from '@oceanprotocol/lib'
-import { useOcean } from '../../providers'
+import { OceanContext } from '../../providers'
 import ProviderStatus from '../../providers/OceanProvider/ProviderStatus'
 import { getBestDataTokenPrice } from '../../utils/dtUtils'
 import { isDDO } from '../../utils'
 import BestPrice from './BestPrice'
 
+type Optional<T> = T | undefined
+
 interface UseMetadata {
-  ddo: DDO | undefined
-  did: DID | string | undefined
-  metadata: Metadata | undefined
-  title: string | undefined
-  price: BestPrice | undefined
+  ddo?: DDO
+  did?: DID | string
+  metadata?: Metadata
+  title?: string
+  price?: BestPrice
   isLoaded: boolean
   getPrice: (dataTokenAddress: string) => Promise<BestPrice | void>
 }
 
 function useMetadata(asset?: DID | string | DDO): UseMetadata {
-  const { ocean, status, accountId, chainId } = useOcean()
+  const { ocean, status, accountId, chainId } = useContext(OceanContext)
   const [internalDdo, setDDO] = useState<DDO>()
   const [internalDid, setDID] = useState<DID | string>()
   const [metadata, setMetadata] = useState<Metadata>()
@@ -26,15 +28,21 @@ function useMetadata(asset?: DID | string | DDO): UseMetadata {
   const [price, setPrice] = useState<BestPrice>()
 
   const getDDO = useCallback(
-    async (did: DID | string): Promise<DDO> => {
-      const ddo = await ocean.metadatastore.retrieveDDO(did)
+    async (did: DID | string): Promise<Optional<DDO>> => {
+      const ddo = await ocean?.metadatastore.retrieveDDO(did)
       return ddo
     },
     [ocean?.metadatastore]
   )
 
   const getPrice = useCallback(
-    async (dataTokenAddress: string): Promise<BestPrice> => {
+    async (dataTokenAddress: string): Promise<Optional<BestPrice>> => {
+      // typeguard for the call that follows
+      if (!ocean) {
+        Logger.error('ocean not set')
+        return
+      }
+
       const price = await getBestDataTokenPrice(
         ocean,
         dataTokenAddress,

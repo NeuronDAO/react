@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useOcean } from '../../providers'
+import { useState, useContext } from 'react'
+import { OceanContext } from '../../providers'
 import { ComputeValue } from './ComputeOptions'
 import { Logger } from '@oceanprotocol/lib'
 import { MetadataAlgorithm } from '@oceanprotocol/lib/dist/node/ddo/interfaces/MetadataAlgorithm'
@@ -38,10 +38,10 @@ const rawAlgorithmMeta: MetadataAlgorithm = {
 }
 
 function useCompute(): UseCompute {
-  const { ocean, account, accountId, config } = useOcean()
-  const [computeStep, setComputeStep] = useState<number | undefined>()
-  const [computeStepText, setComputeStepText] = useState<string | undefined>()
-  const [computeError, setComputeError] = useState<string | undefined>()
+  const { ocean, account, accountId, config } = useContext(OceanContext)
+  const [computeStep, setComputeStep] = useState<number>()
+  const [computeStepText, setComputeStepText] = useState<string>()
+  const [computeError, setComputeError] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
 
   function setStep(index?: number) {
@@ -64,11 +64,17 @@ function useCompute(): UseCompute {
   ): Promise<ComputeJob | void> {
     if (!ocean || !account) return
 
-    setComputeError(undefined)
+    setComputeError('')
 
     try {
       setIsLoading(true)
       setStep(0)
+
+      // type guard for the checkAndBuyDT call
+      if (!config) {
+        Logger.error('config not set')
+        return
+      }
 
       await checkAndBuyDT(ocean, dataTokenAddress, account, config)
       rawAlgorithmMeta.container = computeContainer

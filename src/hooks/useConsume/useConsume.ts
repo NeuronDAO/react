@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { useOcean } from '../../providers'
+import { useState, useContext } from 'react'
+import { OceanContext } from '../../providers'
 import { feedback } from '../../utils'
-import { DID, Logger, ServiceType } from '@oceanprotocol/lib'
+import { DID, Logger, Ocean, ServiceType } from '@oceanprotocol/lib'
 import { checkAndBuyDT } from '../../utils/dtUtils'
 
 interface UseConsume {
@@ -25,11 +25,11 @@ export const consumeFeedback: { [key in number]: string } = {
 }
 
 function useConsume(): UseConsume {
-  const { ocean, account, accountId, config } = useOcean()
+  const { ocean, account, accountId, config } = useContext(OceanContext)
   const [isLoading, setIsLoading] = useState(false)
-  const [consumeStep, setConsumeStep] = useState<number | undefined>()
-  const [consumeStepText, setConsumeStepText] = useState<string | undefined>()
-  const [consumeError, setConsumeError] = useState<string | undefined>()
+  const [consumeStep, setConsumeStep] = useState<number>()
+  const [consumeStepText, setConsumeStepText] = useState<string>()
+  const [consumeError, setConsumeError] = useState<string>()
 
   function setStep(index: number) {
     setConsumeStep(index)
@@ -43,7 +43,12 @@ function useConsume(): UseConsume {
   ): Promise<void> {
     if (!ocean || !account || !accountId) return
     setIsLoading(true)
-    setConsumeError(undefined)
+    setConsumeError('')
+
+    if (!config) {
+      Logger.error('config not set')
+      return
+    }
 
     try {
       setStep(0)

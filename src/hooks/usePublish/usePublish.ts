@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { DDO, Metadata, Logger } from '@oceanprotocol/lib'
-import { useOcean } from '../../providers'
+import { OceanContext } from '../../providers/OceanProvider'
 import ProviderStatus from '../../providers/OceanProvider/ProviderStatus'
 import {
   Service,
@@ -26,11 +26,11 @@ interface UsePublish {
 }
 
 function usePublish(): UsePublish {
-  const { ocean, status, account, accountId, config } = useOcean()
+  const { ocean, status, account, accountId, config } = useContext(OceanContext)
   const [isLoading, setIsLoading] = useState(false)
-  const [publishStep, setPublishStep] = useState<number | undefined>()
-  const [publishStepText, setPublishStepText] = useState<string | undefined>()
-  const [publishError, setPublishError] = useState<string | undefined>()
+  const [publishStep, setPublishStep] = useState<number>()
+  const [publishStepText, setPublishStepText] = useState<string>()
+  const [publishError, setPublishError] = useState<string>()
 
   function setStep(index?: number) {
     setPublishStep(index)
@@ -39,7 +39,7 @@ function usePublish(): UsePublish {
 
   async function mint(tokenAddress: string, tokensToMint: string) {
     Logger.log('mint function', tokenAddress, accountId)
-    await ocean.datatokens.mint(tokenAddress, accountId, tokensToMint)
+    await ocean?.datatokens.mint(tokenAddress, accountId, tokensToMint)
   }
 
   async function createPricing(
@@ -49,7 +49,7 @@ function usePublish(): UsePublish {
   ): Promise<void | null> {
     switch (priceOptions.type) {
       case 'dynamic': {
-        await ocean.pool.createDTPool(
+        await ocean?.pool.createDTPool(
           accountId,
           dataTokenAddress,
           priceOptions.tokensToMint.toString(),
@@ -59,17 +59,17 @@ function usePublish(): UsePublish {
         break
       }
       case 'fixed': {
-        if (!config.fixedRateExchangeAddress) {
+        if (!config?.fixedRateExchangeAddress) {
           Logger.error(`'fixedRateExchangeAddress' not set in ccnfig.`)
           return null
         }
 
-        await ocean.fixedRateExchange.create(
+        await ocean?.fixedRateExchange.create(
           dataTokenAddress,
           priceOptions.price.toString(),
           accountId
         )
-        await ocean.datatokens.approve(
+        await ocean?.datatokens.approve(
           dataTokenAddress,
           config.fixedRateExchangeAddress,
           mintedTokens,
@@ -97,7 +97,7 @@ function usePublish(): UsePublish {
     if (status !== ProviderStatus.CONNECTED || !ocean || !account) return null
 
     setIsLoading(true)
-    setPublishError(undefined)
+    setPublishError('')
 
     try {
       const tokensToMint = priceOptions.tokensToMint.toString()
@@ -123,6 +123,7 @@ function usePublish(): UsePublish {
         case 'compute': {
           const cluster = ocean.compute.createClusterAttributes(
             'Kubernetes',
+            // ! Naz: is this supposed to have xxx and a local ip address?
             'http://10.0.0.17/xxx'
           )
           const servers = [
@@ -207,5 +208,7 @@ function usePublish(): UsePublish {
   }
 }
 
+// ! TODO: it is not very clear from the name that UsePublish is an interface.
+// suggest renaming it to usePublishType. and using type in place of interface
 export { usePublish, UsePublish }
 export default usePublish
